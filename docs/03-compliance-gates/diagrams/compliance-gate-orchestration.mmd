@@ -1,0 +1,28 @@
+---
+title: Automated Compliance Gate Orchestration
+---
+flowchart LR
+    candidate["Release candidate<br/>image + SBOM + pipeline run"]
+    sast["SAST gate<br/>0 Critical, ≤2 High, coverage met"]
+    dast["DAST gate<br/>0 Critical/High OWASP Top 10"]
+    dep["Dependency/container gate<br/>0 Critical CVE, CVSS ≥9 blocks"]
+    lic["Licence gate<br/>No GPL/AGPL/SSPL"]
+    iac["IaC gate<br/>Checkov: no privileged containers, limits set"]
+    policy["Policy gate<br/>OPA/Kyverno: signed image, TLS, RBAC"]
+    decision["Compliance decision<br/>all gates pass?"]
+    deploy["Promote to deployment<br/>CAB/dual approval where required"]
+    exception["Block + exception workflow<br/>CISO/Legal/TRC time-bound approval"]
+    evidence["Immutable audit evidence<br/>RBI + PCI-DSS mapping"]
+    candidate --> sast
+    candidate --> dast
+    candidate --> dep
+    sast --> lic
+    dast --> iac
+    dep --> policy
+    lic --> decision
+    iac --> decision
+    policy --> decision
+    decision -->|pass| deploy
+    decision -->|fail| exception
+    deploy --> evidence
+    exception --> evidence

@@ -1,0 +1,38 @@
+digraph "Automated Rollback Decision and Execution Workflow" {
+	bgcolor=white nodesep=0.55 pad=0.35 rankdir=LR ranksep=0.75 splines=ortho
+	graph [fontname=Arial fontsize=16 label="Automated Rollback Decision and Execution Workflow" labelloc=t]
+	node [color="#2D3748" fillcolor="#F7FAFC" fontname=Arial fontsize=10 margin="0.09,0.07" penwidth=1.6 shape=rect style="rounded,filled"]
+	edge [arrowsize=0.7 color="#2D3748" fontname=Arial fontsize=9 penwidth=1.4]
+	signals [label="Observability signals
+Prometheus, K8s events, synthetic, business metrics" fillcolor="#E6F2FF"]
+	catA [label="Category A immediate <60s
+5xx >5%, health fail, CrashLoop, OOM, DB pool" fillcolor="#FDEAEA"]
+	catB [label="Category B escalated <15m
+p99 >2x, burn >10x, payment drop >2%, saturation" fillcolor="#FFF4E5"]
+	catC [label="Category C manual decision
+customer reports, compliance anomaly, gradual degradation" fillcolor="#F7FAFC"]
+	engine [label="Rollback decision engine
+correlate deployment + alert" fillcolor="#F0EAFE"]
+	freeze [label="Freeze release
+stop canary expansion / block deploys" fillcolor="#F7FAFC"]
+	traffic [label="Rollback execution
+route traffic to stable blue/green or previous image" fillcolor="#EAF7EA"]
+	verify [label="Post-rollback verification
+smoke, metrics, synthetic, customer impact" fillcolor="#EAF7EA"]
+	notify [label="Notify + incident record
+SRE, Release Manager, Compliance, postmortem" fillcolor="#F0EAFE"]
+	evidence [label="Rollback evidence pack
+trigger, decision, timestamps, approvals" fillcolor="#F7FAFC"]
+	signals -> catA
+	signals -> catB
+	signals -> catC
+	catA -> engine [label=auto]
+	catB -> engine [label="escalate/auto after window"]
+	catC -> engine [label="human approval"]
+	engine -> freeze
+	freeze -> traffic
+	traffic -> verify
+	verify -> notify
+	notify -> evidence
+	verify -> engine [label="if still failing"]
+}

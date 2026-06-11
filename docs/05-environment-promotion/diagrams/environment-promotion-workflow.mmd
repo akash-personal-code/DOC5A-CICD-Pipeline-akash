@@ -1,0 +1,22 @@
+---
+title: Four-Environment Promotion Workflow
+---
+flowchart LR
+    dev["Development<br/>Synthetic/mock data<br/>Auto on PR merge"]
+    g1["Gate 1<br/>unit tests 100% pass<br/>coverage + SAST + signed artifact"]
+    staging["Staging<br/>Anonymised prod-like data<br/>Integration, DAST, performance"]
+    g2["Gate 2<br/>contract + DAST + SBOM + licence<br/>Tech Lead approval"]
+    preprod["Pre-production<br/>Masked production subset<br/>UAT + compliance verification"]
+    g3["Gate 3<br/>UAT + CAB/standard change<br/>RM + SRE dual approval"]
+    prod["Production<br/>Real customer data<br/>SRE/Release Manager only"]
+    config["Same artifact, different config<br/>Vault secrets + Helm values + ArgoCD drift detection"]
+    dev --> g1
+    g1 --> staging
+    staging --> g2
+    g2 --> preprod
+    preprod --> g3
+    g3 --> prod
+    config --> dev
+    config --> staging
+    config --> preprod
+    config --> prod

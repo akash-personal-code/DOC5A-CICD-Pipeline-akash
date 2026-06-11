@@ -1,0 +1,37 @@
+digraph "Blue-Green and Canary Deployment Topology" {
+	bgcolor=white nodesep=0.55 pad=0.35 rankdir=LR ranksep=0.75 splines=ortho
+	graph [fontname=Arial fontsize=16 label="Blue-Green and Canary Deployment Topology" labelloc=t]
+	node [color="#2D3748" fillcolor="#F7FAFC" fontname=Arial fontsize=10 margin="0.09,0.07" penwidth=1.6 shape=rect style="rounded,filled"]
+	edge [arrowsize=0.7 color="#2D3748" fontname=Arial fontsize=9 penwidth=1.4]
+	users [label="Customers / UPI clients" fillcolor="#E6F2FF"]
+	gateway [label="Ingress + Istio Gateway" fillcolor="#F7FAFC"]
+	vs [label="Istio VirtualService
+weighted routing" fillcolor="#FFF4E5"]
+	blue [label="Blue namespace
+current stable 100% or baseline" fillcolor="#E6F2FF"]
+	green [label="Green namespace
+new release / canary 1→10→50→100%" fillcolor="#EAF7EA"]
+	redis [label="Redis 7 cluster
+sessions + cache" fillcolor="#F7FAFC"]
+	db [label="PostgreSQL 16 + pgBouncer
+shared backward-compatible schema" fillcolor="#F7FAFC"]
+	prom [label="Prometheus + synthetic checks" fillcolor="#F0EAFE"]
+	rollback [label="Rollback controller
+traffic re-route + verify" fillcolor="#FDEAEA"]
+	argo [label="ArgoCD + Helm
+declarative rollout" fillcolor="#F7FAFC"]
+	users -> gateway
+	gateway -> vs
+	vs -> blue [label="stable traffic"]
+	vs -> green [label="canary/green traffic"]
+	blue -> redis
+	green -> redis
+	blue -> db
+	green -> db
+	argo -> blue
+	argo -> green
+	prom -> rollback [label="threshold breach"]
+	rollback -> vs [label="atomic route switch"]
+	prom -> blue
+	prom -> green
+}

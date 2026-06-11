@@ -1,0 +1,20 @@
+---
+title: SEV-1 Incident Response Flow: Friday 5 PM Scenario
+---
+flowchart LR
+    t0["T+0 alert storm<br/>HTTP 500 12%, DB pool exhausted, gateway timeout 35%"]
+    sev1["T+30s classify SEV-1<br/>data/payment integrity risk"]
+    warroom["T+2m open war room<br/>assign IC, Scribe, Comms, SRE"]
+    rollback["T+5m rollback canary<br/>route traffic to stable, freeze releases"]
+    comm["T+5–15m communications<br/>internal, status page, leadership"]
+    verify["T+10–15m verify recovery<br/>5xx, DB pool, payment success, synthetics"]
+    root["Root cause<br/>hotfix bypassed staging and gates"]
+    post["Postmortem + controls<br/>block bypass, stronger RBAC, audit evidence"]
+    t0 --> sev1
+    sev1 --> warroom
+    sev1 --> rollback
+    warroom --> comm
+    rollback --> verify
+    comm --> verify
+    verify --> root
+    root --> post

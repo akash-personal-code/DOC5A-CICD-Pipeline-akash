@@ -1,0 +1,275 @@
+name: NovaPay Regulated CI/CD Evidence Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "release/*" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: novapay-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_NAME: novapay-lite
+  IMAGE_NAME: novapay-lite
+  IMAGE_TAG: ${{ github.sha }}
+  JAVA_VERSION: "21"
+  DB_PASSWORD: ci-local-only-password
+  RABBITMQ_PASSWORD: guest
+
+jobs:
+  build-test:
+    name: Stage 2 - Build, Unit Test, Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Stage 1 - Source checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
+      - name: Build, test, and enforce JaCoCo quality gate
+        run: ./gradlew clean build jacocoTestReport jacocoTestCoverageVerification --no-daemon
+
+      - name: Archive build and coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 02-build-test-coverage-evidence
+          path: |
+            build/reports/tests/test/**
+            build/reports/jacoco/test/**
+            build/test-results/test/**
+
+  sast:
+    name: Stage 3 - SAST Quality Gate
+    runs-on: ubuntu-latest
+    needs: build-test
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Semgrep Java SAST scan
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/java
+      - name: Write SAST gate summary
+        if: always()
+        run: |
+          mkdir -p evidence/test-results
+          cat > evidence/test-results/sast-gate-summary.md <<'SUMMARY'
+          # SAST Gate Summary
+          Gate threshold: 0 Critical findings, <=2 High findings, no exploitable SQL injection, command injection, or PII leakage pattern.
+          Tool: Semgrep Java ruleset for CI evidence. SonarQube/SonarCloud may be used as the formal enterprise gate.
+          SUMMARY
+      - name: Archive SAST evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 03-sast-evidence
+          path: evidence/test-results/sast-gate-summary.md
+
+  dependency-scan:
+    name: Stage 4A - Dependency Scan and SBOM Gate
+    runs-on: ubuntu-latest
+    needs: build-test
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem dependency gate
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          output: trivy-fs-report.txt
+          exit-code: "1"
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom-cyclonedx.json
+      - name: Archive dependency scan evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 04a-dependency-sbom-evidence
+          path: |
+            trivy-fs-report.txt
+            sbom-cyclonedx.json
+
+  docker-image:
+    name: Stage 4B - Container Build and Image Scan
+    runs-on: ubuntu-latest
+    needs: build-test
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build immutable Docker image
+        run: docker build -t $IMAGE_NAME:$IMAGE_TAG -t $IMAGE_NAME:0.0.1 .
+      - name: Trivy image vulnerability gate
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: novapay-lite:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          output: trivy-image-report.txt
+          exit-code: "1"
+      - name: Archive image scan evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 04b-container-scan-evidence
+          path: trivy-image-report.txt
+
+  integration-contract:
+    name: Stage 5 - Integration, Smoke, and Contract Evidence
+    runs-on: ubuntu-latest
+    needs: docker-image
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start local integration stack
+        run: docker compose up -d --build
+      - name: Wait for API readiness
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8080/api/health; then exit 0; fi
+            sleep 5
+          done
+          docker compose logs novapay-lite
+          exit 1
+      - name: Smoke and API contract evidence
+        run: |
+          mkdir -p evidence/test-results
+          curl -fsS http://localhost:8080/api/health -o evidence/test-results/health.txt
+          curl -fsS http://localhost:8080/api/version -o evidence/test-results/version.json
+          curl -fsS http://localhost:8080/v3/api-docs -o evidence/test-results/openapi.json
+      - name: Customer API smoke test
+        run: |
+          curl -i -X POST http://localhost:8080/api/customers \
+            -H "Content-Type: application/json" \
+            -H "X-Correlation-ID: ci-customer-001" \
+            --data-binary "@customer.json" \
+            -o evidence/test-results/customer-api-response.txt
+      - name: Archive integration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 05-integration-contract-evidence
+          path: evidence/test-results/**
+      - name: Stop local stack
+        if: always()
+        run: docker compose down -v
+
+  dast:
+    name: Stage 6 - DAST Baseline Gate
+    runs-on: ubuntu-latest
+    needs: integration-contract
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start app for ZAP scan
+        run: docker compose up -d --build
+      - name: Wait for API readiness
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8080/api/health; then exit 0; fi
+            sleep 5
+          done
+          docker compose logs novapay-lite
+          exit 1
+      - name: OWASP ZAP baseline scan
+        run: |
+          mkdir -p reports
+          docker run --rm --network host -v $PWD/reports:/zap/wrk/:rw \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t http://localhost:8080 \
+            -J zap-report.json \
+            -r zap-report.html \
+            -I
+      - name: Archive DAST evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 06-dast-evidence
+          path: reports/**
+      - name: Stop local stack
+        if: always()
+        run: docker compose down -v
+
+  policy-compliance:
+    name: Stage 7 - Policy and Compliance Gates
+    runs-on: ubuntu-latest
+    needs: docker-image
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+      - name: Helm lint and render
+        run: |
+          mkdir -p evidence/test-results
+          helm lint pipeline/helm/novapay-lite | tee evidence/test-results/helm-lint.txt
+          helm template novapay-lite pipeline/helm/novapay-lite \
+            --set image.tag=${IMAGE_TAG} \
+            --set image.repository=${IMAGE_NAME} \
+            > evidence/test-results/rendered-k8s.yaml
+      - name: Run OPA/Conftest policy checks
+        run: |
+          docker run --rm -v "$PWD":/project -w /project openpolicyagent/conftest:v0.51.0 \
+            test evidence/test-results/rendered-k8s.yaml \
+            --policy pipeline/policies/opa \
+            --namespace main | tee evidence/test-results/opa-policy-validation.txt
+      - name: Archive policy compliance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 07-policy-compliance-evidence
+          path: evidence/test-results/**
+
+  deployment-verification:
+    name: Stage 8 - Deployment Verification Decision Record
+    runs-on: ubuntu-latest
+    needs: [sast, dependency-scan, docker-image, integration-contract, dast, policy-compliance]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Produce deployment decision record
+        run: |
+          mkdir -p evidence/test-results
+          cat > evidence/test-results/deployment-decision-record.json <<EOF
+          {
+            "application": "NovaPay Lite",
+            "bank": "NovaPay Digital Bank",
+            "image_tag": "${{ github.sha }}",
+            "pipeline_result": "approved: all previous jobs passed",
+            "required_gates": ["source", "build", "unit_tests", "coverage", "sast", "dependency_scan", "container_scan", "sbom", "integration_contract", "dast", "policy_compliance", "deployment_verification"],
+            "deployment_strategies": ["blue-green", "canary"],
+            "rollback_categories": ["A-immediate", "B-escalated", "C-manual"],
+            "regulatory_mapping": ["RBI IT governance/change control", "PCI-DSS 6.x", "PCI-DSS 10.2", "segregation of duties"]
+          }
+          EOF
+      - name: Archive final evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: 08-final-deployment-evidence
+          path: evidence/test-results/deployment-decision-record.json

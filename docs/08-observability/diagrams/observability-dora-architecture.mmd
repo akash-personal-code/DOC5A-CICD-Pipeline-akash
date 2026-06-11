@@ -1,0 +1,28 @@
+---
+title: Observability, DORA Metrics, and Evidence Architecture
+---
+flowchart LR
+    apps["Application pods<br/>metrics, logs, traces, version labels"]
+    pipeline["CI/CD + ArgoCD events<br/>pipeline stages, gates, deploy metadata"]
+    prom["Prometheus<br/>SLIs, SLOs, canary metrics"]
+    loki["Loki<br/>structured logs + correlation IDs"]
+    jaeger["OpenTelemetry + Jaeger<br/>distributed traces"]
+    grafana["Grafana dashboards<br/>Engineering, DORA, Regulatory"]
+    alert["Alertmanager<br/>SEV routing + escalation"]
+    rollback["Rollback engine<br/>uses alerts + deployment context"]
+    sre["SRE/on-call + incident channel"]
+    audit["Evidence store<br/>DORA events, dashboard snapshots, compliance proof"]
+    apps --> prom
+    apps --> loki
+    apps --> jaeger
+    pipeline --> prom
+    pipeline --> loki
+    prom --> grafana
+    loki --> grafana
+    jaeger --> grafana
+    prom --> alert
+    alert --> rollback
+    alert --> sre
+    grafana --> audit
+    rollback --> audit
+    pipeline --> audit

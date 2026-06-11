@@ -1,0 +1,21 @@
+---
+title: Zero-Downtime Database Migration: Expand-Contract
+---
+flowchart LR
+    baseline["Baseline schema<br/>App V(N-1) online"]
+    expand["EXPAND<br/>Add nullable columns/tables/indexes<br/>backward compatible"]
+    deploy["Deploy App V(N)<br/>Dual-read/write compatible"]
+    backfill["MIGRATE<br/>Idempotent throttled backfill<br/>100M+ rows, abort >20% latency impact"]
+    validate["Validate<br/>counts, checksums, synthetic transactions"]
+    contract["CONTRACT<br/>Remove old columns only after approval<br/>forward-only change"]
+    stable["Final schema<br/>App V(N) only + evidence"]
+    rollback["Rollback/abort paths<br/>Expand reversible, migrate retryable, contract gated"]
+    baseline --> expand
+    expand --> deploy
+    deploy --> backfill
+    backfill --> validate
+    validate -->|after bake + DBA approval| contract
+    contract --> stable
+    expand -->|failure| rollback
+    backfill -->|latency/CV failure| rollback
+    validate -->|data mismatch| rollback

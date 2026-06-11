@@ -1,0 +1,42 @@
+digraph "NovaPay 8-Stage Regulated CI-CD Pipeline" {
+	bgcolor=white nodesep=0.55 pad=0.35 rankdir=LR ranksep=0.75 splines=ortho
+	graph [fontname=Arial fontsize=16 label="NovaPay 8-Stage Regulated CI/CD Pipeline" labelloc=t]
+	node [color="#2D3748" fillcolor="#F7FAFC" fontname=Arial fontsize=10 margin="0.09,0.07" penwidth=1.6 shape=rect style="rounded,filled"]
+	edge [arrowsize=0.7 color="#2D3748" fontname=Arial fontsize=9 penwidth=1.4]
+	dev [label="Developer / PR
+short-lived branch" fillcolor="#E6F2FF"]
+	source [label="1. Source control
+Signed commits + branch protection" fillcolor="#E6F2FF"]
+	build [label="2. Build + unit tests
+Docker build, 80% line / 70% branch" fillcolor="#F7FAFC"]
+	sast [label="3. SAST
+SonarQube/Semgrep: 0 Critical, ≤2 High" fillcolor="#F0EAFE"]
+	scan [label="4. Dependency + container scan
+Trivy/Grype, SBOM, licence check" fillcolor="#F0EAFE"]
+	test [label="5. Integration + contract tests
+Pact + ephemeral namespace" fillcolor="#F7FAFC"]
+	dast [label="6. DAST
+OWASP ZAP active/authenticated" fillcolor="#F0EAFE"]
+	policy [label="7. Policy + compliance gates
+OPA/Kyverno, RBI, PCI-DSS, SoD" fillcolor="#F0EAFE"]
+	deploy [label="8. Deployment + verification
+Blue-green / canary + smoke tests" fillcolor="#EAF7EA"]
+	prod [label="Production verified
+Evidence pack + DORA event" fillcolor="#EAF7EA"]
+	fail [label="Failure path
+Block, auto-ticket, remediation, exception workflow" fillcolor="#FDEAEA"]
+	dev -> source
+	source -> build
+	build -> sast
+	sast -> scan
+	scan -> test
+	test -> dast
+	dast -> policy
+	policy -> deploy
+	deploy -> prod
+	build -> fail [label="on gate failure"]
+	sast -> fail [label="on finding"]
+	scan -> fail [label="on CVE/licence"]
+	policy -> fail [label="on policy reject"]
+	deploy -> fail [label="on verification fail"]
+}

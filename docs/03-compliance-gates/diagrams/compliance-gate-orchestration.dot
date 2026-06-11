@@ -1,0 +1,41 @@
+digraph "Automated Compliance Gate Orchestration" {
+	bgcolor=white nodesep=0.55 pad=0.35 rankdir=LR ranksep=0.75 splines=ortho
+	graph [fontname=Arial fontsize=16 label="Automated Compliance Gate Orchestration" labelloc=t]
+	node [color="#2D3748" fillcolor="#F7FAFC" fontname=Arial fontsize=10 margin="0.09,0.07" penwidth=1.6 shape=rect style="rounded,filled"]
+	edge [arrowsize=0.7 color="#2D3748" fontname=Arial fontsize=9 penwidth=1.4]
+	candidate [label="Release candidate
+image + SBOM + pipeline run" fillcolor="#E6F2FF"]
+	sast [label="SAST gate
+0 Critical, ≤2 High, coverage met" fillcolor="#F0EAFE"]
+	dast [label="DAST gate
+0 Critical/High OWASP Top 10" fillcolor="#F0EAFE"]
+	dep [label="Dependency/container gate
+0 Critical CVE, CVSS ≥9 blocks" fillcolor="#F0EAFE"]
+	lic [label="Licence gate
+No GPL/AGPL/SSPL" fillcolor="#FFF4E5"]
+	iac [label="IaC gate
+Checkov: no privileged containers, limits set" fillcolor="#FFF4E5"]
+	policy [label="Policy gate
+OPA/Kyverno: signed image, TLS, RBAC" fillcolor="#FFF4E5"]
+	decision [label="Compliance decision
+all gates pass?" fillcolor="#EAF7EA"]
+	deploy [label="Promote to deployment
+CAB/dual approval where required" fillcolor="#EAF7EA"]
+	exception [label="Block + exception workflow
+CISO/Legal/TRC time-bound approval" fillcolor="#FDEAEA"]
+	evidence [label="Immutable audit evidence
+RBI + PCI-DSS mapping" fillcolor="#F7FAFC"]
+	candidate -> sast
+	candidate -> dast
+	candidate -> dep
+	sast -> lic
+	dast -> iac
+	dep -> policy
+	lic -> decision
+	iac -> decision
+	policy -> decision
+	decision -> deploy [label=pass]
+	decision -> exception [label=fail]
+	deploy -> evidence
+	exception -> evidence
+}

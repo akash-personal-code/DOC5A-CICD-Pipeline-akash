@@ -1,0 +1,29 @@
+---
+title: NovaPay 8-Stage Regulated CI/CD Pipeline
+---
+flowchart LR
+    dev["Developer / PR<br/>short-lived branch"]
+    source["1. Source control<br/>Signed commits + branch protection"]
+    build["2. Build + unit tests<br/>Docker build, 80% line / 70% branch"]
+    sast["3. SAST<br/>SonarQube/Semgrep: 0 Critical, ≤2 High"]
+    scan["4. Dependency + container scan<br/>Trivy/Grype, SBOM, licence check"]
+    test["5. Integration + contract tests<br/>Pact + ephemeral namespace"]
+    dast["6. DAST<br/>OWASP ZAP active/authenticated"]
+    policy["7. Policy + compliance gates<br/>OPA/Kyverno, RBI, PCI-DSS, SoD"]
+    deploy["8. Deployment + verification<br/>Blue-green / canary + smoke tests"]
+    prod["Production verified<br/>Evidence pack + DORA event"]
+    fail["Failure path<br/>Block, auto-ticket, remediation, exception workflow"]
+    dev --> source
+    source --> build
+    build --> sast
+    sast --> scan
+    scan --> test
+    test --> dast
+    dast --> policy
+    policy --> deploy
+    deploy --> prod
+    build -->|on gate failure| fail
+    sast -->|on finding| fail
+    scan -->|on CVE/licence| fail
+    policy -->|on policy reject| fail
+    deploy -->|on verification fail| fail

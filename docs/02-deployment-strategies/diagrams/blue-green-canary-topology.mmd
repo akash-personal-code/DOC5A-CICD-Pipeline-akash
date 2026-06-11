@@ -1,0 +1,28 @@
+---
+title: Blue-Green and Canary Deployment Topology
+---
+flowchart LR
+    users["Customers / UPI clients"]
+    gateway["Ingress + Istio Gateway"]
+    vs["Istio VirtualService<br/>weighted routing"]
+    blue["Blue namespace<br/>current stable 100% or baseline"]
+    green["Green namespace<br/>new release / canary 1→10→50→100%"]
+    redis["Redis 7 cluster<br/>sessions + cache"]
+    db["PostgreSQL 16 + pgBouncer<br/>shared backward-compatible schema"]
+    prom["Prometheus + synthetic checks"]
+    rollback["Rollback controller<br/>traffic re-route + verify"]
+    argo["ArgoCD + Helm<br/>declarative rollout"]
+    users --> gateway
+    gateway --> vs
+    vs -->|stable traffic| blue
+    vs -->|canary/green traffic| green
+    blue --> redis
+    green --> redis
+    blue --> db
+    green --> db
+    argo --> blue
+    argo --> green
+    prom -->|threshold breach| rollback
+    rollback -->|atomic route switch| vs
+    prom --> blue
+    prom --> green

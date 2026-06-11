@@ -1,0 +1,30 @@
+digraph "SEV-1 Incident Response Flow: Friday 5 PM Scenario" {
+	bgcolor=white nodesep=0.55 pad=0.35 rankdir=LR ranksep=0.75 splines=ortho
+	graph [fontname=Arial fontsize=16 label="SEV-1 Incident Response Flow: Friday 5 PM Scenario" labelloc=t]
+	node [color="#2D3748" fillcolor="#F7FAFC" fontname=Arial fontsize=10 margin="0.09,0.07" penwidth=1.6 shape=rect style="rounded,filled"]
+	edge [arrowsize=0.7 color="#2D3748" fontname=Arial fontsize=9 penwidth=1.4]
+	t0 [label="T+0 alert storm
+HTTP 500 12%, DB pool exhausted, gateway timeout 35%" fillcolor="#FDEAEA"]
+	sev1 [label="T+30s classify SEV-1
+data/payment integrity risk" fillcolor="#FDEAEA"]
+	warroom [label="T+2m open war room
+assign IC, Scribe, Comms, SRE" fillcolor="#F0EAFE"]
+	rollback [label="T+5m rollback canary
+route traffic to stable, freeze releases" fillcolor="#EAF7EA"]
+	comm [label="T+5–15m communications
+internal, status page, leadership" fillcolor="#FFF4E5"]
+	verify [label="T+10–15m verify recovery
+5xx, DB pool, payment success, synthetics" fillcolor="#EAF7EA"]
+	root [label="Root cause
+hotfix bypassed staging and gates" fillcolor="#F7FAFC"]
+	post [label="Postmortem + controls
+block bypass, stronger RBAC, audit evidence" fillcolor="#F0EAFE"]
+	t0 -> sev1
+	sev1 -> warroom
+	sev1 -> rollback
+	warroom -> comm
+	rollback -> verify
+	comm -> verify
+	verify -> root
+	root -> post
+}

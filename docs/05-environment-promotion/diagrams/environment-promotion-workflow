@@ -1,0 +1,39 @@
+digraph "Four-Environment Promotion Workflow" {
+	bgcolor=white nodesep=0.55 pad=0.35 rankdir=LR ranksep=0.75 splines=ortho
+	graph [fontname=Arial fontsize=16 label="Four-Environment Promotion Workflow" labelloc=t]
+	node [color="#2D3748" fillcolor="#F7FAFC" fontname=Arial fontsize=10 margin="0.09,0.07" penwidth=1.6 shape=rect style="rounded,filled"]
+	edge [arrowsize=0.7 color="#2D3748" fontname=Arial fontsize=9 penwidth=1.4]
+	dev [label="Development
+Synthetic/mock data
+Auto on PR merge" fillcolor="#E6F2FF"]
+	g1 [label="Gate 1
+unit tests 100% pass
+coverage + SAST + signed artifact" fillcolor="#F0EAFE"]
+	staging [label="Staging
+Anonymised prod-like data
+Integration, DAST, performance" fillcolor="#F7FAFC"]
+	g2 [label="Gate 2
+contract + DAST + SBOM + licence
+Tech Lead approval" fillcolor="#F0EAFE"]
+	preprod [label="Pre-production
+Masked production subset
+UAT + compliance verification" fillcolor="#FFF4E5"]
+	g3 [label="Gate 3
+UAT + CAB/standard change
+RM + SRE dual approval" fillcolor="#F0EAFE"]
+	prod [label="Production
+Real customer data
+SRE/Release Manager only" fillcolor="#EAF7EA"]
+	config [label="Same artifact, different config
+Vault secrets + Helm values + ArgoCD drift detection" fillcolor="#F7FAFC"]
+	dev -> g1
+	g1 -> staging
+	staging -> g2
+	g2 -> preprod
+	preprod -> g3
+	g3 -> prod
+	config -> dev
+	config -> staging
+	config -> preprod
+	config -> prod
+}

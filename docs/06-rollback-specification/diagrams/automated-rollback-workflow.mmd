@@ -1,0 +1,26 @@
+---
+title: Automated Rollback Decision and Execution Workflow
+---
+flowchart LR
+    signals["Observability signals<br/>Prometheus, K8s events, synthetic, business metrics"]
+    catA["Category A immediate <60s<br/>5xx >5%, health fail, CrashLoop, OOM, DB pool"]
+    catB["Category B escalated <15m<br/>p99 >2x, burn >10x, payment drop >2%, saturation"]
+    catC["Category C manual decision<br/>customer reports, compliance anomaly, gradual degradation"]
+    engine["Rollback decision engine<br/>correlate deployment + alert"]
+    freeze["Freeze release<br/>stop canary expansion / block deploys"]
+    traffic["Rollback execution<br/>route traffic to stable blue/green or previous image"]
+    verify["Post-rollback verification<br/>smoke, metrics, synthetic, customer impact"]
+    notify["Notify + incident record<br/>SRE, Release Manager, Compliance, postmortem"]
+    evidence["Rollback evidence pack<br/>trigger, decision, timestamps, approvals"]
+    signals --> catA
+    signals --> catB
+    signals --> catC
+    catA -->|auto| engine
+    catB -->|escalate/auto after window| engine
+    catC -->|human approval| engine
+    engine --> freeze
+    freeze --> traffic
+    traffic --> verify
+    verify --> notify
+    notify --> evidence
+    verify -->|if still failing| engine

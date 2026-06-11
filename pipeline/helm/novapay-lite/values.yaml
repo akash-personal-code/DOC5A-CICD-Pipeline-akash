@@ -1,0 +1,88 @@
+replicaCount: 2
+
+image:
+  repository: novapay-lite
+  pullPolicy: IfNotPresent
+  tag: "0.0.1"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+podLabels:
+  app: novapay-lite
+  owner: platform-engineering
+  environment: staging
+  compliance-scope: pci-rbi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 10001
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: ""
+  hosts:
+    - host: novapay-lite.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+deployment:
+  color: blue
+
+canary:
+  enabled: false
+  weight: 0
+
+database:
+  host: postgres
+  user: novapay
+  name: novapay_lite
+  existingSecret: novapay-db-credentials
+  passwordKey: password
+
+redis:
+  host: redis
+
+rabbitmq:
+  host: rabbitmq
+  existingSecret: novapay-rabbitmq-credentials
+  passwordKey: password
+
+runtime:
+  simulateFailure: "false"
+  simulateLatencyMs: "0"
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 1024Mi
+
+probes:
+  liveness:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readiness:
+    initialDelaySeconds: 20
+    periodSeconds: 10

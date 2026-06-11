@@ -1,0 +1,39 @@
+digraph "Observability, DORA Metrics, and Evidence Architecture" {
+	bgcolor=white nodesep=0.55 pad=0.35 rankdir=LR ranksep=0.75 splines=ortho
+	graph [fontname=Arial fontsize=16 label="Observability, DORA Metrics, and Evidence Architecture" labelloc=t]
+	node [color="#2D3748" fillcolor="#F7FAFC" fontname=Arial fontsize=10 margin="0.09,0.07" penwidth=1.6 shape=rect style="rounded,filled"]
+	edge [arrowsize=0.7 color="#2D3748" fontname=Arial fontsize=9 penwidth=1.4]
+	apps [label="Application pods
+metrics, logs, traces, version labels" fillcolor="#E6F2FF"]
+	pipeline [label="CI/CD + ArgoCD events
+pipeline stages, gates, deploy metadata" fillcolor="#E6F2FF"]
+	prom [label="Prometheus
+SLIs, SLOs, canary metrics" fillcolor="#F0EAFE"]
+	loki [label="Loki
+structured logs + correlation IDs" fillcolor="#F0EAFE"]
+	jaeger [label="OpenTelemetry + Jaeger
+distributed traces" fillcolor="#F0EAFE"]
+	grafana [label="Grafana dashboards
+Engineering, DORA, Regulatory" fillcolor="#EAF7EA"]
+	alert [label="Alertmanager
+SEV routing + escalation" fillcolor="#FFF4E5"]
+	rollback [label="Rollback engine
+uses alerts + deployment context" fillcolor="#FDEAEA"]
+	sre [label="SRE/on-call + incident channel" fillcolor="#F7FAFC"]
+	audit [label="Evidence store
+DORA events, dashboard snapshots, compliance proof" fillcolor="#F7FAFC"]
+	apps -> prom
+	apps -> loki
+	apps -> jaeger
+	pipeline -> prom
+	pipeline -> loki
+	prom -> grafana
+	loki -> grafana
+	jaeger -> grafana
+	prom -> alert
+	alert -> rollback
+	alert -> sre
+	grafana -> audit
+	rollback -> audit
+	pipeline -> audit
+}

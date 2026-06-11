@@ -1,0 +1,33 @@
+# Build outputs
+build/
+.gradle/
+out/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Local secrets and env files
+.env
+*.env
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+kubeconfig*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Runtime reports generated locally
+reports/*.html
+reports/*.json
+reports/*.txt
+!reports/.gitkeep
+
+# Temporary files
+*.log
+*.tmp
