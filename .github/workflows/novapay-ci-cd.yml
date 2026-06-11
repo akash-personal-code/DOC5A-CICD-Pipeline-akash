@@ -125,7 +125,7 @@ jobs:
       - name: Build immutable Docker image
         run: docker build -t $IMAGE_NAME:$IMAGE_TAG -t $IMAGE_NAME:0.0.1 .
       - name: Trivy image vulnerability gate
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: novapay-lite:${{ github.sha }}
           severity: CRITICAL,HIGH
