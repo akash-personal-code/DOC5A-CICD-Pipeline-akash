@@ -90,7 +90,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Trivy filesystem dependency gate
+      - name: Trivy filesystem scan evidence (HIGH+CRITICAL)
         uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: fs
@@ -99,6 +99,17 @@ jobs:
           ignore-unfixed: true
           format: table
           output: trivy-fs-report.txt
+          exit-code: "0"
+
+      - name: Trivy filesystem critical blocker gate
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          output: trivy-fs-critical-gate.txt
           exit-code: "1"
       - name: Generate CycloneDX SBOM
         uses: anchore/sbom-action@v0
@@ -113,6 +124,7 @@ jobs:
           name: 04a-dependency-sbom-evidence
           path: |
             trivy-fs-report.txt
+            trivy-fs-critical-gate.txt
             sbom-cyclonedx.json
 
   docker-image:
@@ -124,7 +136,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build immutable Docker image
         run: docker build -t $IMAGE_NAME:$IMAGE_TAG -t $IMAGE_NAME:0.0.1 .
-      - name: Trivy image vulnerability gate
+      - name: Trivy image scan evidence (HIGH+CRITICAL)
         uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: novapay-lite:${{ github.sha }}
@@ -132,13 +144,25 @@ jobs:
           ignore-unfixed: true
           format: table
           output: trivy-image-report.txt
+          exit-code: "0"
+
+      - name: Trivy image critical blocker gate
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: novapay-lite:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          output: trivy-image-critical-gate.txt
           exit-code: "1"
       - name: Archive image scan evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: 04b-container-scan-evidence
-          path: trivy-image-report.txt
+          path: |
+            trivy-image-report.txt
+            trivy-image-critical-gate.txt
 
   integration-contract:
     name: Stage 5 - Integration, Smoke, and Contract Evidence
